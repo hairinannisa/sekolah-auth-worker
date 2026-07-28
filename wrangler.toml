@@ -2,23 +2,42 @@ name = "sekolah-auth-worker"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-# [KV] Rate limiting percobaan login. Buat dulu dengan:
-#   wrangler kv:namespace create RATE_LIMIT_KV
-# lalu tempel "id" yang muncul di sini (dan "preview_id" untuk `wrangler dev`).
+# Mengaktifkan observability (logs & metrics)
+[observability]
+enabled = true
+
+###############################################################################
+# KV Namespace (Rate Limit)
+###############################################################################
+
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "GANTI_DENGAN_ID_DARI_WRANGLER_KV_NAMESPACE_CREATE"
-preview_id = "GANTI_DENGAN_PREVIEW_ID"
+id = "4c00d9f800c24d8096eb133138478920"
+preview_id = "4c00d9f800c24d8096eb133138478920"
 
-# Var biasa (tidak rahasia) — boleh langsung di sini.
+###############################################################################
+# Environment Variables
+###############################################################################
+
 [vars]
+
+# Firebase
 FIREBASE_PROJECT_ID = "studio-9960638705-245ad"
-# Kosongkan (hapus baris ini) untuk izinkan semua origin — lihat src/lib/cors.ts.
-# ALLOWED_ORIGINS = "https://mapokobulo.situntas.id,https://situntas.id"
 
-# [SECRET] JANGAN taruh FIREBASE_SERVICE_ACCOUNT_JSON di file ini!
-# Set lewat CLI supaya tidak ke-commit ke git:
-#   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
-# lalu tempel ISI FILE JSON service account (satu baris, boleh ada literal \n di
-# dalam private_key — sudah dinormalisasi otomatis di src/lib/jwt.ts).
+# Domain frontend yang boleh mengakses Worker
+# Pisahkan dengan koma jika lebih dari satu.
+ALLOWED_ORIGINS = "https://sekolahki.hairinannisa.workers.dev/"
 
+###############################################################################
+# Secrets
+###############################################################################
+
+# Jangan simpan Service Account di file ini.
+# Jalankan:
+#
+# wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
+#
+# lalu paste isi file JSON Firebase Service Account.
+#
+# Secret tersebut akan tersedia sebagai:
+# env.FIREBASE_SERVICE_ACCOUNT_JSON
