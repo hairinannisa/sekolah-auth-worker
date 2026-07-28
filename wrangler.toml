@@ -26,7 +26,7 @@ FIREBASE_PROJECT_ID = "studio-9960638705-245ad"
 
 # Domain frontend yang boleh mengakses Worker
 # Pisahkan dengan koma jika lebih dari satu.
-ALLOWED_ORIGINS = "https://sekolahki.hairinannisa.workers.dev/"
+ALLOWED_ORIGINS = "https://sekolahki.hairinannisa.workers.dev"
 
 ###############################################################################
 # Secrets
