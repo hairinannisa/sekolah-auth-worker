@@ -6,6 +6,7 @@ import { corsHeaders } from './lib/cors';
 import { handleTeacherLogin } from './routes/teacherLogin';
 import { handleParentLogin } from './routes/parentLogin';
 import { handleStudentLogin } from './routes/studentLogin';
+import { handleCheckToken } from './routes/checkToken';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -26,6 +27,8 @@ export default {
         return handleParentLogin(request, env);
       case '/student-login':
         return handleStudentLogin(request, env);
+      case '/check-token':
+        return handleCheckToken(request, env);
       default:
         return new Response('Not Found', { status: 404, headers: corsHeaders(request, env) });
     }
