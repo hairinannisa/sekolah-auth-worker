@@ -35,6 +35,21 @@ export interface FirestoreClient {
   getDoc(path: string): Promise<Record<string, any> | null>;
   /** Cari SATU dokumen di sebuah collection dengan field == value. null kalau tidak ada. */
   findOneWhere(collectionPath: string, field: string, value: string): Promise<Record<string, any> | null>;
+  /**
+   * Cari SATU dokumen lintas SEMUA sekolah (collection group query) dengan
+   * field == value — dipakai untuk resolve token ujian → schoolId TANPA
+   * aplikasi/klien perlu tahu schoolId lebih dulu (lihat routes/studentLogin.ts).
+   * Mengembalikan juga `schoolId` yang diekstrak dari path dokumen
+   * (".../sites/{schoolId}/examRoomsPublic/{roomId}") dan `docId`-nya.
+   * null kalau tidak ada, ATAU kalau ternyata ADA LEBIH DARI SATU match
+   * (token bentrok antar sekolah — dianggap tidak valid demi keamanan,
+   * jangan asal ambil salah satu).
+   */
+  findOneWhereCollectionGroup(
+    collectionId: string,
+    field: string,
+    value: string
+  ): Promise<{ schoolId: string; docId: string; data: Record<string, any> } | 'ambiguous' | null>;
 }
 
 export function createFirestoreClient(projectId: string, accessToken: string): FirestoreClient {
@@ -78,6 +93,46 @@ export function createFirestoreClient(projectId: string, accessToken: string): F
       const rows = await res.json() as Array<{ document?: { fields?: Record<string, any> } }>;
       const doc = rows.find(r => r.document)?.document;
       return doc ? decodeFields(doc.fields || {}) : null;
+    },
+
+    async findOneWhereCollectionGroup(collectionId: string, field: string, value: string) {
+      // Query TANPA parent (root database) + allDescendants:true = collection
+      // group query, menembus semua "sites/{schoolId}/..." sekaligus. Butuh
+      // collection-group index untuk field ini (lihat firestore.indexes.json).
+      const url = `${documentsRoot}:runQuery`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId, allDescendants: true }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: field },
+                op: 'EQUAL',
+                value: { stringValue: value },
+              },
+            },
+            limit: 2, // 2, bukan 1 — supaya kita bisa DETEKSI kalau ternyata bentrok (>1 match)
+          },
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`Firestore findOneWhereCollectionGroup(${collectionId}) gagal: ${res.status} ${await res.text().catch(() => '')}`);
+      }
+      const rows = await res.json() as Array<{ document?: { name?: string; fields?: Record<string, any> } }>;
+      const docs = rows.filter(r => r.document?.name).map(r => r.document!);
+      if (docs.length === 0) return null;
+      if (docs.length > 1) return 'ambiguous';
+
+      const doc = docs[0];
+      // doc.name = ".../documents/sites/{schoolId}/examRoomsPublic/{roomId}"
+      const segments = (doc.name || '').split('/');
+      const sitesIdx = segments.indexOf('sites');
+      const schoolId = sitesIdx !== -1 ? segments[sitesIdx + 1] : '';
+      const docId = segments[segments.length - 1] || '';
+      if (!schoolId) return null;
+      return { schoolId, docId, data: decodeFields(doc.fields || {}) };
     },
   };
 }
